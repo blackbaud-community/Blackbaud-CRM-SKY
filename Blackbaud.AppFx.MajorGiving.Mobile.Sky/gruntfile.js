@@ -13,7 +13,7 @@ module.exports = function (grunt) {
         initialForceState = grunt.option("force"),
         testResultsFolder,
         isCrmInstallation = true,
-        vroot = '';
+        vroot = 'BBCRM_sp21_frogger/';
 
     console.log("Running Blackbaud.AppFx.MajorGiving.Mobile.Sky/gruntfile.js");
     console.log("IsDesktopBuild: " + isDesktopBuild);

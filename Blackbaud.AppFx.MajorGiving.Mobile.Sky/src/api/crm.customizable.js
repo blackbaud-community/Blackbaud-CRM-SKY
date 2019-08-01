@@ -29,9 +29,13 @@
                  */
                 isCustomApp: function () {
                     return false;
-                }
+                },
 
                 // Add other custom components here.
+                categoryRequired: function () {
+                    return false;
+                }
+
             };
         }]);
 
