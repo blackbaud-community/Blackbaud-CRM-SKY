@@ -10,28 +10,35 @@
     'use strict';
 
     angular.module("frog.api")
-        .factory('customizable', ['customizableRoot', function (customizableRoot) {
+        .factory('customizable', ['apiContactReportOptions', function (apiContactReportOptions) {
             return {
 
                 /**
                  * Gets the name of the application's root folder. Corresponds to customizableRoot.getRootFolder.
-                 * 
+                 * @returns {String}
                  * Do not remove this function.
                  */
                 getRootFolder: function () {
-                    return customizableRoot.getRootFolder();
+                    return 'frogger';
                 },
 
                 /**
                  * Gets a value indicating whether or not this is a custom application. Corresponds to customizableRoot.isCustomApp.
-                 * 
+                 * @returns {Boolean}
                  * Do not remove this function.
                  */
                 isCustomApp: function () {
-                    return customizableRoot.isCustomApp();
-                }
+                    return true;
+                },
 
                 // Add other custom components here.
+                categoryRequired: function (selectedStatus, currentPlanType) {
+                    if (selectedStatus === apiContactReportOptions.getCompletedStatusCode(currentPlanType)) {
+                        return true;
+                    }
+                    return false;
+                }
+
             };
         }]);
 
