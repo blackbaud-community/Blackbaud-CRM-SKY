@@ -10,7 +10,7 @@
     'use strict';
 
     angular.module("frog.api")
-        .factory('customizable', ['apiContactReportOptions', function (apiContactReportOptions) {
+        .factory('customizable', ['apiContactReportOptions', 'prospectUtilities', function (apiContactReportOptions, prospectUtilities) {
             return {
 
                 /**
@@ -32,11 +32,23 @@
                 },
 
                 // Add other custom components here.
+
+                // Adds a function that checks if a step/interaction is complete and requires category if true
                 categoryRequired: function (selectedStatus, currentPlanType) {
                     if (selectedStatus === apiContactReportOptions.getCompletedStatusCode(currentPlanType)) {
                         return true;
                     }
                     return false;
+                },
+
+                // Returns the custom portfolio datalist ID
+                myPortfolioDatalistId: function () {
+                    return 'f5dbcd14-181b-44bc-9062-e4bfdcf458bc'; // Custom Portfolio Frogger Data List
+                },
+
+                // Adds a function that uses the custom datalist spec to build the custom name (first name, last name, class of)
+                getProspectName: function (frogResources, prospectValues) {
+                    return prospectUtilities.getFullNameWithClassOf(frogResources, prospectValues[2], prospectValues[1], prospectValues[5]);
                 }
 
             };

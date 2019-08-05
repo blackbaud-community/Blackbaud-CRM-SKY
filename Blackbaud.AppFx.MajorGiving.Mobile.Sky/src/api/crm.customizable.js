@@ -10,7 +10,7 @@
     'use strict';
 
     angular.module("frog.api")
-        .factory('customizableRoot', [function () {
+        .factory('customizableRoot', ['prospectUtilities', function (prospectUtilities) {
             return {
 
                 /**
@@ -32,8 +32,17 @@
                 },
 
                 // Add other custom components here.
+
                 categoryRequired: function () {
                     return false;
+                },
+
+                myPortfolioDatalistId: function () {
+                    return 'da329c8b-773c-4501-8329-77047018f6a9'; //  FundraiserPortfolio.Mobile.DataList.xml
+                },
+
+                getProspectName: function (frogResources, prospectValues) {
+                    return prospectUtilities.getFullName(frogResources, prospectValues[2], prospectValues[1]);
                 }
 
             };

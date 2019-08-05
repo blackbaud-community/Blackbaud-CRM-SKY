@@ -1,0 +1,479 @@
+﻿<DataListSpec 
+	xmlns="bb_appfx_datalist"
+	xmlns:c="bb_appfx_commontypes" 
+	ID="f5dbcd14-181b-44bc-9062-e4bfdcf458bc" 
+	Name="Custom Portfolio Frogger Data List"
+	Description="A data list showing custom portfolio with rearranged primary portfolio and class of." 
+	Author="BLACKBAUD\LeslieSt"
+	c:SecurityUIFolder="Custom Portfolio Frogger"
+	>
+
+	<!-- define the SP that returns the data for the datalist -->
+	<SPDataList SPName="USR_USP_DATALIST_CUSTOM_PORTFOLIO_FROGGER">
+		<c:CreateProcedureSQL>
+			<![CDATA[
+create procedure dbo.USR_USP_DATALIST_CUSTOM_PORTFOLIO_FROGGER
+(
+	@FUNDRAISERID uniqueidentifier,
+  @ONLYPRIMARY bit = 0,
+  @SORT tinyint = 0 -- 0=LASTFIRST, 1=NEXTSTEP,
+)
+as
+	set nocount on;
+
+-- Constants
+declare @NOTIME dbo.UDT_HOURMINUTE = '    ';
+declare @TODAY date = getdate();
+declare @LATESTSQLDATE datetime = cast('12/31/9999' as datetime);
+declare @PASTDUECUTOFF date = dateadd(day, -14, @TODAY);
+declare @CURRENTAPPUSERID uniqueidentifier;
+declare @SECURITYFEATUREID uniqueidentifier;
+declare @SECURITYFEATURETYPE int = '2';
+declare @ISSYSADMIN bit = dbo.UFN_APPUSER_ISSYSADMIN(@CURRENTAPPUSERID);
+
+-- This table will hold only primary prospects.
+declare @PRIMARYPORTFOLIO as table
+(
+    PROSPECTID uniqueidentifier,
+    PLANID uniqueidentifier
+);
+
+-- This table will hold any other prospects.
+-- It also holds all steps, even if we are only getting the primary portfolio.
+declare @SECONDARYPORTFOLIO as table
+(
+    STEPID uniqueidentifier,
+    PROSPECTID uniqueidentifier,
+    PLANID uniqueidentifier,
+    PLANNAME nvarchar(100),
+    STEPDATE datetime,
+    STEPTIME dbo.UDT_HOURMINUTE,
+    STEPLOCATION nvarchar(300),
+    STEPCONTACTMETHODID uniqueidentifier,
+    STEPCONTACTMETHOD nvarchar(100),
+    STEPOBJECTIVE nvarchar(100),
+    STEPCOMMENTS nvarchar(max)
+);
+
+-- PRIMARY PORTFOLIO START
+
+insert into @PRIMARYPORTFOLIO
+-- Primary plan manager
+select 
+    PROSPECTPLAN.PROSPECTID as PROSPECTID,
+    PROSPECTPLAN.ID as PLANID
+from dbo.PROSPECTPLAN
+where 
+    PRIMARYMANAGERFUNDRAISERID = @FUNDRAISERID and
+    (
+        --Manager's end date is not specified or it has not yet expired(end date is >= current date)
+        PRIMARYMANAGERENDDATE is null or 
+        PRIMARYMANAGERENDDATE >= @TODAY
+    )
+    and dbo.UFN_CONSTITUENT_ISPROSPECT(PROSPECTPLAN.PROSPECTID) = 1
+    and PROSPECTPLAN.ISACTIVE = 1
+    and exists(
+        select * from dbo.UFN_SITEID_MAPFROM_PROSPECTPLANID(PROSPECTPLAN.ID) as SITES
+        where @ISSYSADMIN = 1 or exists (
+            select *
+            from dbo.UFN_SITESFORUSERONFEATURE(@CURRENTAPPUSERID, @SECURITYFEATUREID, @SECURITYFEATURETYPE)
+            where SITEID = SITES.SITEID or (SITEID is null and SITES.SITEID is null)
+        )
+    )
+    --SqlManipulation_SingleProspect--and PROSPECTPLAN.PROSPECTID = @PROSPECTID
+
+-- PRIMARY PORTFOLIO END
+
+-- SECONDARY PORTFOLIO STEPS START
+
+-- Don''t exclude for primary portfolio so we get step data.
+
+insert into @SECONDARYPORTFOLIO
+
+-- Interactions and steps - owner, participant, or additional solicitor/fundraiser
+select
+    INTERACTION.ID as STEPID,
+    INTERACTION.CONSTITUENTID as PROSPECTID,
+    INTERACTION.PROSPECTPLANID as PLANID,
+    PROSPECTPLAN.NAME as PLANNAME,
+    INTERACTION.EXPECTEDDATE as STEPDATE,
+    INTERACTION.STARTTIME as STEPTIME,
+    INTERACTION.LOCATION as STEPLOCATION,
+    INTERACTIONTYPECODE.ID as STEPCONTACTMETHODID,
+    INTERACTIONTYPECODE.DESCRIPTION as STEPCONTACTMETHOD,
+    INTERACTION.OBJECTIVE as STEPOBJECTIVE,
+    INTERACTION.COMMENT as STEPCOMMENTS
+from
+    dbo.INTERACTION
+left join
+    dbo.PROSPECTPLAN on PROSPECTPLAN.ID = INTERACTION.PROSPECTPLANID
+left join
+    dbo.INTERACTIONPARTICIPANT on
+        INTERACTIONPARTICIPANT.INTERACTIONID = INTERACTION.ID
+        and INTERACTIONPARTICIPANT.CONSTITUENTID = @FUNDRAISERID
+left join
+    dbo.INTERACTIONADDITIONALFUNDRAISER on
+        INTERACTIONADDITIONALFUNDRAISER.INTERACTIONID = INTERACTION.ID
+        and INTERACTIONADDITIONALFUNDRAISER.FUNDRAISERID = @FUNDRAISERID
+left join
+    dbo.INTERACTIONTYPECODE on INTERACTION.INTERACTIONTYPECODEID = INTERACTIONTYPECODE.ID
+where
+    (
+        INTERACTION.FUNDRAISERID = @FUNDRAISERID -- step owner
+        or INTERACTIONPARTICIPANT.ID is not null -- step participant
+        or INTERACTIONADDITIONALFUNDRAISER.ID is not null -- step additional solicitor/fundraiser
+    )
+    and INTERACTION.STATUSCODE in (0, 1) --planned, pending
+    and exists(
+        select * from dbo.UFN_SITEID_MAPFROM_INTERACTIONID(INTERACTION.ID) as SITES
+        where @ISSYSADMIN = 1 or exists (
+            select *
+            from dbo.UFN_SITESFORUSERONFEATURE(@CURRENTAPPUSERID, @SECURITYFEATUREID, @SECURITYFEATURETYPE)
+            where SITEID = SITES.SITEID or (SITEID is null and SITES.SITEID is null)
+        )
+    )
+    --SqlManipulation_SingleProspect--and INTERACTION.CONSTITUENTID = @PROSPECTID
+
+-- SECONDARY PORTFOLIO STEPS END
+
+-- SECONDARY PORTFOLIO START
+
+-- Don''t need to bother selecting these with the primary portfolio because we''re not getting step data.
+if (@ONLYPRIMARY = 0) begin
+    insert into @SECONDARYPORTFOLIO
+
+-- Prospect manager
+select
+    null as STEPID,
+    CONSTITUENT.ID as PROSPECTID,
+    PROSPECTPLAN.ID as PLANID, --can be null
+    PROSPECTPLAN.NAME as PLANNAME, -- can be null
+    null as STEPDATE,
+    @NOTIME as STEPTIME,
+    '' as STEPLOCATION,
+    null as STEPCONTACTMETHODID,
+    null as STEPCONTACTMETHOD,
+    null as STEPOBJECTIVE,
+    '' as STEPCOMMENTS
+from 
+    dbo.CONSTITUENT
+    inner join dbo.PROSPECT on CONSTITUENT.ID = PROSPECT.ID
+    left outer join dbo.PROSPECTPLAN on PROSPECTPLAN.PROSPECTID = CONSTITUENT.ID
+where
+    PROSPECT.PROSPECTMANAGERFUNDRAISERID = @FUNDRAISERID and
+    (
+        PROSPECTPLAN.ID is null 
+        or (
+            PROSPECTPLAN.ISACTIVE = 1
+            and exists(
+                select * from dbo.UFN_SITEID_MAPFROM_PROSPECTPLANID(PROSPECTPLAN.ID) as SITES
+                where @ISSYSADMIN = 1 or exists (
+                    select *
+                    from dbo.UFN_SITESFORUSERONFEATURE(@CURRENTAPPUSERID, @SECURITYFEATUREID, @SECURITYFEATURETYPE)
+                    where SITEID = SITES.SITEID or (SITEID is null and SITES.SITEID is null)
+                )
+            )
+        )
+    )
+    and dbo.UFN_CONSTITUENT_ISPROSPECT(CONSTITUENT.ID) = 1
+    --SqlManipulation_SingleProspect--and CONSTITUENT.ID = @PROSPECTID
+union all
+
+    -- Secondary plan manager
+    select
+        null as STEPID,
+        PROSPECTPLAN.PROSPECTID as PROSPECTID,
+        PROSPECTPLAN.ID as PLANID,
+        PROSPECTPLAN.NAME as PLANNAME,
+        null as STEPDATE,
+        @NOTIME as STEPTIME,
+        '' as STEPLOCATION,
+        null as STEPCONTACTMETHODID,
+        null as STEPCONTACTMETHOD,
+        null as STEPOBJECTIVE,
+        '' as STEPCOMMENTS
+    from dbo.PROSPECTPLAN 
+    where 
+        (
+            SECONDARYMANAGERFUNDRAISERID = @FUNDRAISERID
+            and
+            (
+                --Manager''s end date is not specified or it has not yet expired(end date is >= current date)
+                SECONDARYMANAGERENDDATE is null or 
+                SECONDARYMANAGERENDDATE >= @TODAY
+            ) 
+        )
+        and dbo.UFN_CONSTITUENT_ISPROSPECT(PROSPECTPLAN.PROSPECTID) = 1
+        and PROSPECTPLAN.ISACTIVE = 1
+        and exists(
+            select * from dbo.UFN_SITEID_MAPFROM_PROSPECTPLANID(PROSPECTPLAN.ID) as SITES
+            where @ISSYSADMIN = 1 or exists (
+                select *
+                from dbo.UFN_SITESFORUSERONFEATURE(@CURRENTAPPUSERID, @SECURITYFEATUREID, @SECURITYFEATURETYPE)
+                where SITEID = SITES.SITEID or (SITEID is null and SITES.SITEID is null)
+            )
+        )
+        --SqlManipulation_SingleProspect--and PROSPECTPLAN.PROSPECTID = @PROSPECTID
+
+    union all
+
+    -- Secondary solicitor
+    select
+        null as STEPID,
+        PROSPECTPLAN.PROSPECTID as PROSPECTID,
+        PROSPECTPLAN.ID as PLANID,
+        PROSPECTPLAN.NAME as PLANNAME,
+        null as STEPDATE,
+        @NOTIME as STEPTIME,
+        '' as STEPLOCATION,
+        null as STEPCONTACTMETHODID,
+        null as STEPCONTACTMETHOD,
+        null as STEPOBJECTIVE,
+        '' as STEPCOMMENTS
+    from dbo.SECONDARYFUNDRAISER
+        inner join dbo.PROSPECTPLAN on PROSPECTPLAN.ID = SECONDARYFUNDRAISER.PROSPECTPLANID
+    where 
+        FUNDRAISERID = @FUNDRAISERID and 
+        (
+            DATETO is null or 
+            DATETO >= @TODAY
+        )
+        and dbo.UFN_CONSTITUENT_ISPROSPECT(PROSPECTPLAN.PROSPECTID) = 1
+        and PROSPECTPLAN.ISACTIVE = 1
+        and exists(
+            select * from dbo.UFN_SITEID_MAPFROM_PROSPECTPLANID(PROSPECTPLAN.ID) as SITES
+            where @ISSYSADMIN = 1 or exists (
+                select *
+                from dbo.UFN_SITESFORUSERONFEATURE(@CURRENTAPPUSERID, @SECURITYFEATUREID, @SECURITYFEATURETYPE)
+                where SITEID = SITES.SITEID or (SITEID is null and SITES.SITEID is null)
+            )
+        )
+        --SqlManipulation_SingleProspect--and PROSPECTPLAN.PROSPECTID = @PROSPECTID
+
+    
+end
+
+insert into @SECONDARYPORTFOLIO (
+    STEPID,
+    PROSPECTID,
+    PLANID,
+    PLANNAME,
+    STEPDATE,
+    STEPTIME,
+    STEPLOCATION,
+    STEPCONTACTMETHODID,
+    STEPCONTACTMETHOD,
+    STEPOBJECTIVE,
+    STEPCOMMENTS
+)
+-- Prospect plan step with no owner
+select
+    INTERACTION.ID as STEPID,
+    INTERACTION.CONSTITUENTID as PROSPECTID,
+    PROSPECTPLAN.ID as PLANID,
+    PROSPECTPLAN.NAME as PLANNAME,
+    INTERACTION.EXPECTEDDATE as STEPDATE,
+    INTERACTION.STARTTIME as STEPTIME,
+    INTERACTION.LOCATION as STEPLOCATION,
+    INTERACTIONTYPECODE.ID as STEPCONTACTMETHODID,
+    INTERACTIONTYPECODE.DESCRIPTION as STEPCONTACTMETHOD,
+    INTERACTION.OBJECTIVE as STEPOBJECTIVE,
+    INTERACTION.COMMENT as STEPCOMMENTS
+from
+    dbo.INTERACTION
+    inner join 
+    (
+        select PLANID from @PRIMARYPORTFOLIO
+        union all
+        select PLANID from @SECONDARYPORTFOLIO
+    ) as PORTFOLIO on PORTFOLIO.PLANID = INTERACTION.PROSPECTPLANID
+    inner join
+        dbo.PROSPECTPLAN on PROSPECTPLAN.ID = INTERACTION.PROSPECTPLANID
+    left join
+        dbo.INTERACTIONTYPECODE on INTERACTION.INTERACTIONTYPECODEID = INTERACTIONTYPECODE.ID
+where
+    INTERACTION.FUNDRAISERID is null
+    and INTERACTION.STATUSCODE in (0, 1) --planned, pending
+    and exists(
+        select * from dbo.UFN_SITEID_MAPFROM_INTERACTIONID(INTERACTION.ID) as SITES
+        where @ISSYSADMIN = 1 or exists (
+            select *
+            from dbo.UFN_SITESFORUSERONFEATURE(@CURRENTAPPUSERID, @SECURITYFEATUREID, @SECURITYFEATURETYPE)
+            where SITEID = SITES.SITEID or (SITEID is null and SITES.SITEID is null)
+        )
+    )
+    -- If the plan is in the portfolio tables, the step is for this prospect.
+
+;
+
+-- SECONDARY PORTFOLIO END
+-- This is intended to be appended to the SQL in ..\Portfolio.sql
+
+with DISTINCTPROSPECTS as
+(
+    select distinct
+        PORTFOLIO.PROSPECTID,
+        CONSTITUENT.KEYNAME as PROSPECTKEYNAME,
+        CONSTITUENT.FIRSTNAME as PROSPECTFIRSTNAME,
+        CAST(e.CLASSOF as varchar(4)) as CLASSOF
+    from 
+        (
+            select PROSPECTID from @PRIMARYPORTFOLIO
+            union all
+            select PROSPECTID from @SECONDARYPORTFOLIO where @ONLYPRIMARY = 0
+        ) as PORTFOLIO
+        inner join dbo.CONSTITUENT on CONSTITUENT.ID = PORTFOLIO.PROSPECTID
+        left join dbo.EducationalHistory e on (e.CONSTITUENTID = CONSTITUENT.ID
+        AND e.ISPRIMARYRECORD=1 AND e.CLASSOF>0)
+        left outer join dbo.DECEASEDCONSTITUENT on DECEASEDCONSTITUENT.ID = CONSTITUENT.ID
+    where
+        DECEASEDCONSTITUENT.ID is null
+),
+EARLIESTSTEPDATE as
+(
+    select
+        PORTFOLIO.PROSPECTID,
+        min(PORTFOLIO.STEPDATE) as STEPDATE
+    from
+        @SECONDARYPORTFOLIO as PORTFOLIO
+    group by
+        PORTFOLIO.PROSPECTID
+),
+EARLIESTSTEPTIME as
+(
+    select
+        PORTFOLIO.PROSPECTID,
+        min(PORTFOLIO.STEPTIME) as STEPTIME
+    from
+        @SECONDARYPORTFOLIO as PORTFOLIO
+        inner join EARLIESTSTEPDATE
+            on EARLIESTSTEPDATE.PROSPECTID = PORTFOLIO.PROSPECTID
+            and EARLIESTSTEPDATE.STEPDATE = PORTFOLIO.STEPDATE
+    group by
+        PORTFOLIO.PROSPECTID
+),
+PASTDUERECENTDATE as
+(
+    select
+        PORTFOLIO.PROSPECTID,
+        min(PORTFOLIO.STEPDATE) as STEPDATE
+    from
+        @SECONDARYPORTFOLIO as PORTFOLIO
+    where
+        PORTFOLIO.STEPDATE < @TODAY
+        and PORTFOLIO.STEPDATE >= @PASTDUECUTOFF
+    group by
+        PORTFOLIO.PROSPECTID
+),
+PASTDUERECENTTIME as
+(
+    select
+        PORTFOLIO.PROSPECTID,
+        min(PORTFOLIO.STEPTIME) as STEPTIME
+    from
+        @SECONDARYPORTFOLIO as PORTFOLIO
+        inner join PASTDUERECENTDATE
+            on PASTDUERECENTDATE.PROSPECTID = PORTFOLIO.PROSPECTID
+            and PASTDUERECENTDATE.STEPDATE = PORTFOLIO.STEPDATE
+    group by
+        PORTFOLIO.PROSPECTID
+),
+EARLIESTFUTUREDATE as
+(
+    select
+        PORTFOLIO.PROSPECTID,
+        min(PORTFOLIO.STEPDATE) as STEPDATE
+    from
+        @SECONDARYPORTFOLIO as PORTFOLIO
+    where
+        PORTFOLIO.STEPDATE >= @TODAY
+    group by
+        PORTFOLIO.PROSPECTID
+),
+EARLIESTFUTURETIME as
+(
+    select
+        PORTFOLIO.PROSPECTID,
+        min(PORTFOLIO.STEPTIME) as STEPTIME
+    from
+        @SECONDARYPORTFOLIO as PORTFOLIO
+        inner join EARLIESTFUTUREDATE
+            on EARLIESTFUTUREDATE.PROSPECTID = PORTFOLIO.PROSPECTID
+            and EARLIESTFUTUREDATE.STEPDATE = PORTFOLIO.STEPDATE
+    group by
+        PORTFOLIO.PROSPECTID
+)
+select
+    DISTINCTPROSPECTS.PROSPECTID,
+    DISTINCTPROSPECTS.PROSPECTKEYNAME,
+    DISTINCTPROSPECTS.PROSPECTFIRSTNAME,
+    coalesce(PASTDUERECENTDATE.STEPDATE, EARLIESTFUTUREDATE.STEPDATE, EARLIESTSTEPDATE.STEPDATE) as NEXTSTEPDATE,
+    case
+        when PASTDUERECENTDATE.STEPDATE is not null then PASTDUERECENTTIME.STEPTIME
+        when EARLIESTFUTUREDATE.STEPDATE is not null then EARLIESTFUTURETIME.STEPTIME
+        when EARLIESTSTEPDATE.STEPDATE is not null then EARLIESTSTEPTIME.STEPTIME
+        else @NOTIME
+    end as NEXTSTEPTIME,
+    DISTINCTPROSPECTS.CLASSOF
+from
+    DISTINCTPROSPECTS
+    left join EARLIESTSTEPDATE on EARLIESTSTEPDATE.PROSPECTID = DISTINCTPROSPECTS.PROSPECTID
+    left join EARLIESTSTEPTIME on EARLIESTSTEPTIME.PROSPECTID = DISTINCTPROSPECTS.PROSPECTID
+    left join PASTDUERECENTDATE on PASTDUERECENTDATE.PROSPECTID = DISTINCTPROSPECTS.PROSPECTID
+    left join PASTDUERECENTTIME on PASTDUERECENTTIME.PROSPECTID = DISTINCTPROSPECTS.PROSPECTID
+    left join EARLIESTFUTUREDATE on EARLIESTFUTUREDATE.PROSPECTID = DISTINCTPROSPECTS.PROSPECTID
+    left join EARLIESTFUTURETIME on EARLIESTFUTURETIME.PROSPECTID = DISTINCTPROSPECTS.PROSPECTID
+order by
+	DISTINCTPROSPECTS.PROSPECTKEYNAME,
+  DISTINCTPROSPECTS.PROSPECTFIRSTNAME,
+	coalesce(PASTDUERECENTDATE.STEPDATE, EARLIESTFUTUREDATE.STEPDATE, EARLIESTSTEPDATE.STEPDATE, @LATESTSQLDATE),
+	case
+		when PASTDUERECENTDATE.STEPDATE is not null then coalesce(nullif(PASTDUERECENTTIME.STEPTIME, @NOTIME), '9999')
+		when EARLIESTFUTUREDATE.STEPDATE is not null then coalesce(nullif(EARLIESTFUTURETIME.STEPTIME, @NOTIME), '9999')
+		when EARLIESTSTEPDATE.STEPDATE is not null then coalesce(nullif(EARLIESTSTEPTIME.STEPTIME, @NOTIME), '9999')
+		else '9999'
+	end
+    
+			]]>
+</c:CreateProcedureSQL>
+</SPDataList>
+
+<!-- describe the context ID parameter for the SP (if applicable)-->
+<Context ContextRecordType="Constituent" RecordIDParameter="FUNDRAISERID"/>
+
+<!-- describe any parameters (other than the context ID) defined on the SP-->
+<Parameters>
+<FormMetaData xmlns="bb_appfx_commontypes">
+<FormFields>
+  <FormField FieldID="ONLYPRIMARY" DataType="Boolean" Caption="Only include primary prospects" DefaultValueText="0" />
+  <FormField FieldID="SORT" DataType="TinyInt" Caption="Order by" DefaultValueText="0">
+    <ValueList>
+      <Items>
+        <Item>
+          <Value>0</Value>
+          <Label>Last name, first name</Label>
+        </Item>
+        <Item>
+          <Value>1</Value>
+          <Label>Last step date</Label>
+        </Item>
+      </Items>
+    </ValueList>
+  </FormField>
+</FormFields>
+</FormMetaData>
+</Parameters>
+
+<!-- define the output fields in the list -->
+<Output>
+<OutputFields>
+<OutputField FieldID="PROSPECTID" Caption="Prospect ID" IsHidden="true" DataType="Guid" />
+<OutputField FieldID="PROSPECTKEYNAME" Caption="Prospect key name" DataType="String" />
+<OutputField FieldID="PROSPECTFIRSTNAME" Caption="Prospect first name" DataType="String" />
+<OutputField FieldID="LASTCOMPLETEDINTERACTION" Caption="Last completed interaction" DataType="Date" />
+<OutputField FieldID="LASTCOMPLETEDINTERACTIONTIME" Caption="Last completed interaction time" DataType="HourMinute" />
+<OutputField FieldID="CLASSOF" Caption="Prospect class of" DataType="String" />
+</OutputFields>
+</Output>
+
+</DataListSpec>

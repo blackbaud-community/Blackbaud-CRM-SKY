@@ -8,12 +8,13 @@
     var noop = angular.noop;
 
     angular.module("frog.api")
-        .factory("apiPortfolio", ["bbuiShellService", "frogResources", "infinityUtilities", "prospectUtilities", "infinityCache", "bbui", "$q",
-            function (bbuiShellService, frogResources, infinityUtilities, prospectUtilities, infinityCache, bbui, $q) {
+        .factory("apiPortfolio", ["bbuiShellService", "frogResources", "infinityUtilities", "prospectUtilities", "infinityCache", "bbui", "$q", 'customizable',
+            function (bbuiShellService, frogResources, infinityUtilities, prospectUtilities, infinityCache, bbui, $q, customizable) {
 
                 var svc,
                     FUNDRAISER_IDMAP_ID = 'C606C99A-FE2F-4F3E-AB48-3F4463344E92', // AppUser.Fundraiser.IDMapper.xml
-                    MYPORTFOLIO_DATALIST_ID = "da329c8b-773c-4501-8329-77047018f6a9", // FundraiserPortfolio.Mobile.DataList.xml
+                    //MYPORTFOLIO_DATALIST_ID = "da329c8b-773c-4501-8329-77047018f6a9", // FundraiserPortfolio.Mobile.DataList.xml
+                    MYPORTFOLIO_DATALIST_ID = customizable.myPortfolioDatalistId(),
                     MYPORTFOLIOSETTINGS_VIEW_ID = "cc816f72-b91e-452c-b715-aa15a676e98d"; // FundraiserPortfolio.Mobile.DataList.Settings.View.xml
 
                 /**
@@ -41,8 +42,9 @@
                         // 4 NEXTSTEPTIME
                         var prospectValues = row.values;
 
+                        // Customizing name to pull from customizable which will include full name and class year
                         prospects.push({
-                            name: prospectUtilities.getFullName(frogResources, prospectValues[2], prospectValues[1]),
+                            name: customizable.getProspectName(frogResources, prospectValues),
                             id: prospectValues[0].toUpperCase(),
                             nextStepDate: prospectValues[3]
                         });
