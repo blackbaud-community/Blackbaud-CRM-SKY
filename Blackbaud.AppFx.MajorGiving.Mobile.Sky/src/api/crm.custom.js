@@ -35,6 +35,7 @@
                  * Gets a value indicating whether or not category is required.
                  * @param {int} selectedStatus The status of the step or interaction.
                  * @param {int} currentPlanType The plan type.
+                 * @returns {Boolean} Indicates if the category is required.
                  */
                 categoryRequired: function (selectedStatus, currentPlanType) {
                     if (selectedStatus === apiContactReportOptions.getCompletedStatusCode(currentPlanType)) {
@@ -45,17 +46,19 @@
 
                 /**
                  * Returns the ID of the Data List to be used to fetch prospects in the fundraiser's portfolio.
+                 * @returns {String} The ID of the Data List.
                  */
                 myPortfolioDatalistId: function () {
-                    return 'f5dbcd14-181b-44bc-9062-e4bfdcf458bc'; // Custom Portfolio Frogger Data List
+                    return 'f5dbcd14-181b-44bc-9062-e4bfdcf458bc'; // CustomPortfolio.DataList.xml
                 },
 
                 /**
                  * Returns the full formatted name of the given prospect, with information on graduating class.
-                 * @param {any} frogResources
+                 * @param {any} frogResources 
                  * @param {String} firstName The first name of the prospect.
                  * @param {String} lastName The last name of the prosect.
                  * @param {String} classOf The prospect's graduating year.
+                 * @returns {String} The full formatted name of the prospect.
                  */
                 getProspectName: function (frogResources, firstName, lastName, classOf) {
                     return prospectUtilities.getFullNameWithClassOf(frogResources, firstName, lastName, classOf);
