@@ -58,7 +58,7 @@
     <None Include="Catalog.ruleset" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Custom_Portfolio_Frogger.xml">
+    <Content Include="CustomPortfolio.DataList.xml">
       <SubType>Designer</SubType>
     </Content>
   </ItemGroup>

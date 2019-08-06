@@ -31,18 +31,28 @@
                     return false;
                 },
 
-                // Add other custom components here.
-
+                /**
+                 * Gets a value indicating whether or not category is required.
+                 */
                 categoryRequired: function () {
                     return false;
                 },
 
+                /**
+                 * Returns the ID of the Data List to be used to fetch prospects in the fundraiser's portfolio.
+                 */
                 myPortfolioDatalistId: function () {
-                    return 'da329c8b-773c-4501-8329-77047018f6a9'; //  FundraiserPortfolio.Mobile.DataList.xml
+                    return 'da329c8b-773c-4501-8329-77047018f6a9'; // FundraiserPortfolio.Mobile.DataList.xml
                 },
 
-                getProspectName: function (frogResources, prospectValues) {
-                    return prospectUtilities.getFullName(frogResources, prospectValues[2], prospectValues[1]);
+                /**
+                 * Returns the full formatted name of the given prospect, with information on graduating class.
+                 * @param {any} frogResources
+                 * @param {String} firstName The first name of the prospect.
+                 * @param {String} lastName The last name of the prosect.
+                 */
+                getProspectName: function (frogResources, firstName, lastName) {
+                    return prospectUtilities.getFullName(frogResources, firstName, lastName);
                 }
 
             };

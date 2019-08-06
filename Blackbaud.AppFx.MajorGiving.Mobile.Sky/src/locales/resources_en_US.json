@@ -264,7 +264,7 @@
     "message": "{0} {1}"
   },
   "name_format_class": {
-    "_description": "The custom name format for a person. The {0} token is the name, then class of. If no class of exists, the name will be used by itself",
+    "_description": "The custom name format for a person. The {0} token is the name, then class of.",
     "message": "{0}, class of {1}"
   },
   "nextInteraction": {

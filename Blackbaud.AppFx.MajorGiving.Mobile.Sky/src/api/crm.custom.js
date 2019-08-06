@@ -31,9 +31,11 @@
                     return true;
                 },
 
-                // Add other custom components here.
-
-                // Adds a function that checks if a step/interaction is complete and requires category if true
+                /**
+                 * Gets a value indicating whether or not category is required.
+                 * @param {int} selectedStatus The status of the step or interaction.
+                 * @param {int} currentPlanType The plan type.
+                 */
                 categoryRequired: function (selectedStatus, currentPlanType) {
                     if (selectedStatus === apiContactReportOptions.getCompletedStatusCode(currentPlanType)) {
                         return true;
@@ -41,14 +43,22 @@
                     return false;
                 },
 
-                // Returns the custom portfolio datalist ID
+                /**
+                 * Returns the ID of the Data List to be used to fetch prospects in the fundraiser's portfolio.
+                 */
                 myPortfolioDatalistId: function () {
                     return 'f5dbcd14-181b-44bc-9062-e4bfdcf458bc'; // Custom Portfolio Frogger Data List
                 },
 
-                // Adds a function that uses the custom datalist spec to build the custom name (first name, last name, class of)
-                getProspectName: function (frogResources, prospectValues) {
-                    return prospectUtilities.getFullNameWithClassOf(frogResources, prospectValues[2], prospectValues[1], prospectValues[5]);
+                /**
+                 * Returns the full formatted name of the given prospect, with information on graduating class.
+                 * @param {any} frogResources
+                 * @param {String} firstName The first name of the prospect.
+                 * @param {String} lastName The last name of the prosect.
+                 * @param {String} classOf The prospect's graduating year.
+                 */
+                getProspectName: function (frogResources, firstName, lastName, classOf) {
+                    return prospectUtilities.getFullNameWithClassOf(frogResources, firstName, lastName, classOf);
                 }
 
             };

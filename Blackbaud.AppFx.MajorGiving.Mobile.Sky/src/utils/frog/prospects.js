@@ -144,14 +144,14 @@
             return keyName;
         }
 
-        // Ccustom function that gets full name and class of if exists
-        function getFullNameWithClassOf(frogResources, keyName, firstName, classOf) {
-            var result = getFullName(frogResources, keyName, firstName);
+        function getFullNameWithClassOf(frogResources, firstName, keyName, classOf) {
+            var result = getFullName(frogResources, firstName, keyName);
+
             if (classOf) {
                 return frogResources.name_format_class.format(result, classOf);
             }
-            return result;
 
+            return result;
         }
 
         function requestFailure(reply, failureCallback) {

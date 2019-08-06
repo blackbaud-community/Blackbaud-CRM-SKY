@@ -1,25 +1,24 @@
-﻿<DataListSpec 
-	xmlns="bb_appfx_datalist"
-	xmlns:c="bb_appfx_commontypes" 
-	ID="f5dbcd14-181b-44bc-9062-e4bfdcf458bc" 
-	Name="Custom Portfolio Frogger Data List"
-	Description="A data list showing custom portfolio with rearranged primary portfolio and class of." 
-	Author="BLACKBAUD\LeslieSt"
-	c:SecurityUIFolder="Custom Portfolio Frogger"
-	>
+﻿<DataListSpec
+  xmlns="bb_appfx_datalist"
+  xmlns:c="bb_appfx_commontypes"
+  ID="f5dbcd14-181b-44bc-9062-e4bfdcf458bc"
+  Name="Custom Portfolio Data List"
+  Description="A data list showing a custom prospect portfolio with rearranged primary portfolio and class of."
+  Author="Blackbaud Technical Demo"
+  c:SecurityUIFolder="Custom Portfolio Frogger"
+  >
 
-	<!-- define the SP that returns the data for the datalist -->
-	<SPDataList SPName="USR_USP_DATALIST_CUSTOM_PORTFOLIO_FROGGER">
-		<c:CreateProcedureSQL>
-			<![CDATA[
+  <SPDataList SPName="USR_USP_DATALIST_CUSTOM_PORTFOLIO_FROGGER">
+    <c:CreateProcedureSQL>
+      <![CDATA[
 create procedure dbo.USR_USP_DATALIST_CUSTOM_PORTFOLIO_FROGGER
 (
-	@FUNDRAISERID uniqueidentifier,
+  @FUNDRAISERID uniqueidentifier,
   @ONLYPRIMARY bit = 0,
   @SORT tinyint = 0 -- 0=LASTFIRST, 1=NEXTSTEP,
 )
 as
-	set nocount on;
+  set nocount on;
 
 -- Constants
 declare @NOTIME dbo.UDT_HOURMINUTE = '    ';
@@ -86,7 +85,7 @@ where
 
 -- SECONDARY PORTFOLIO STEPS START
 
--- Don''t exclude for primary portfolio so we get step data.
+-- Don't exclude for primary portfolio so we get step data.
 
 insert into @SECONDARYPORTFOLIO
 
@@ -323,8 +322,7 @@ with DISTINCTPROSPECTS as
             select PROSPECTID from @SECONDARYPORTFOLIO where @ONLYPRIMARY = 0
         ) as PORTFOLIO
         inner join dbo.CONSTITUENT on CONSTITUENT.ID = PORTFOLIO.PROSPECTID
-        left join dbo.EducationalHistory e on (e.CONSTITUENTID = CONSTITUENT.ID
-        AND e.ISPRIMARYRECORD=1 AND e.CLASSOF>0)
+        left join dbo.EDUCATIONALHISTORY E on (E.CONSTITUENTID = CONSTITUENT.ID and E.ISPRIMARYRECORD = 1 AND E.CLASSOF > 0)
         left outer join dbo.DECEASEDCONSTITUENT on DECEASEDCONSTITUENT.ID = CONSTITUENT.ID
     where
         DECEASEDCONSTITUENT.ID is null
@@ -424,56 +422,53 @@ from
     left join EARLIESTFUTUREDATE on EARLIESTFUTUREDATE.PROSPECTID = DISTINCTPROSPECTS.PROSPECTID
     left join EARLIESTFUTURETIME on EARLIESTFUTURETIME.PROSPECTID = DISTINCTPROSPECTS.PROSPECTID
 order by
-	DISTINCTPROSPECTS.PROSPECTKEYNAME,
+  DISTINCTPROSPECTS.PROSPECTKEYNAME,
   DISTINCTPROSPECTS.PROSPECTFIRSTNAME,
-	coalesce(PASTDUERECENTDATE.STEPDATE, EARLIESTFUTUREDATE.STEPDATE, EARLIESTSTEPDATE.STEPDATE, @LATESTSQLDATE),
-	case
-		when PASTDUERECENTDATE.STEPDATE is not null then coalesce(nullif(PASTDUERECENTTIME.STEPTIME, @NOTIME), '9999')
-		when EARLIESTFUTUREDATE.STEPDATE is not null then coalesce(nullif(EARLIESTFUTURETIME.STEPTIME, @NOTIME), '9999')
-		when EARLIESTSTEPDATE.STEPDATE is not null then coalesce(nullif(EARLIESTSTEPTIME.STEPTIME, @NOTIME), '9999')
-		else '9999'
-	end
+  coalesce(PASTDUERECENTDATE.STEPDATE, EARLIESTFUTUREDATE.STEPDATE, EARLIESTSTEPDATE.STEPDATE, @LATESTSQLDATE),
+  case
+    when PASTDUERECENTDATE.STEPDATE is not null then coalesce(nullif(PASTDUERECENTTIME.STEPTIME, @NOTIME), '9999')
+    when EARLIESTFUTUREDATE.STEPDATE is not null then coalesce(nullif(EARLIESTFUTURETIME.STEPTIME, @NOTIME), '9999')
+    when EARLIESTSTEPDATE.STEPDATE is not null then coalesce(nullif(EARLIESTSTEPTIME.STEPTIME, @NOTIME), '9999')
+    else '9999'
+  end
     
-			]]>
-</c:CreateProcedureSQL>
-</SPDataList>
+      ]]>
+    </c:CreateProcedureSQL>
+  </SPDataList>
 
-<!-- describe the context ID parameter for the SP (if applicable)-->
-<Context ContextRecordType="Constituent" RecordIDParameter="FUNDRAISERID"/>
+  <Context ContextRecordType="Constituent" RecordIDParameter="FUNDRAISERID"/>
 
-<!-- describe any parameters (other than the context ID) defined on the SP-->
-<Parameters>
-<FormMetaData xmlns="bb_appfx_commontypes">
-<FormFields>
-  <FormField FieldID="ONLYPRIMARY" DataType="Boolean" Caption="Only include primary prospects" DefaultValueText="0" />
-  <FormField FieldID="SORT" DataType="TinyInt" Caption="Order by" DefaultValueText="0">
-    <ValueList>
-      <Items>
-        <Item>
-          <Value>0</Value>
-          <Label>Last name, first name</Label>
-        </Item>
-        <Item>
-          <Value>1</Value>
-          <Label>Last step date</Label>
-        </Item>
-      </Items>
-    </ValueList>
-  </FormField>
-</FormFields>
-</FormMetaData>
-</Parameters>
+  <Parameters>
+    <FormMetaData xmlns="bb_appfx_commontypes">
+      <FormFields>
+        <FormField FieldID="ONLYPRIMARY" DataType="Boolean" Caption="Only include primary prospects" DefaultValueText="0" />
+        <FormField FieldID="SORT" DataType="TinyInt" Caption="Order by" DefaultValueText="0">
+          <ValueList>
+            <Items>
+              <Item>
+                <Value>0</Value>
+                <Label>Last name, first name</Label>
+              </Item>
+              <Item>
+                <Value>1</Value>
+                <Label>Last step date</Label>
+              </Item>
+            </Items>
+          </ValueList>
+        </FormField>
+      </FormFields>
+    </FormMetaData>
+  </Parameters>
 
-<!-- define the output fields in the list -->
-<Output>
-<OutputFields>
-<OutputField FieldID="PROSPECTID" Caption="Prospect ID" IsHidden="true" DataType="Guid" />
-<OutputField FieldID="PROSPECTKEYNAME" Caption="Prospect key name" DataType="String" />
-<OutputField FieldID="PROSPECTFIRSTNAME" Caption="Prospect first name" DataType="String" />
-<OutputField FieldID="LASTCOMPLETEDINTERACTION" Caption="Last completed interaction" DataType="Date" />
-<OutputField FieldID="LASTCOMPLETEDINTERACTIONTIME" Caption="Last completed interaction time" DataType="HourMinute" />
-<OutputField FieldID="CLASSOF" Caption="Prospect class of" DataType="String" />
-</OutputFields>
-</Output>
+  <Output>
+    <OutputFields>
+      <OutputField FieldID="PROSPECTID" Caption="Prospect ID" IsHidden="true" DataType="Guid" />
+      <OutputField FieldID="PROSPECTKEYNAME" Caption="Prospect key name" DataType="String" />
+      <OutputField FieldID="PROSPECTFIRSTNAME" Caption="Prospect first name" DataType="String" />
+      <OutputField FieldID="LASTCOMPLETEDINTERACTION" Caption="Last completed interaction" DataType="Date" />
+      <OutputField FieldID="LASTCOMPLETEDINTERACTIONTIME" Caption="Last completed interaction time" DataType="HourMinute" />
+      <OutputField FieldID="CLASSOF" Caption="Prospect class of" DataType="String" />
+    </OutputFields>
+  </Output>
 
 </DataListSpec>
