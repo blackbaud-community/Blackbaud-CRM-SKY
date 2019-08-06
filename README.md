@@ -121,7 +121,7 @@ Once the spec is finished, load the spec into the developer instance of CRM usin
     
     `grunt buildcustom`
 
-    Access your installation by navigating to: &#60;application root&#62;/browser/htmlforms/custom/frogger&databaseName=&#60;your database name&#62;
+    Access your installation by navigating to: &#60;application root&#62;/browser/htmlforms/custom/frogger?databaseName=&#60;your database name&#62;
 
 ### Adding logic to an existing form
 
@@ -220,4 +220,4 @@ Out-of-the-box Fundraiser on the Go forms are subject to specific business rules
     
     `grunt buildcustom`
 
-    Access your installation by navigating to: &#60;application root&#62;/browser/htmlforms/custom/frogger&databaseName=&#60;your database name&#62;
+    Access your installation by navigating to: &#60;application root&#62;/browser/htmlforms/custom/frogger?databaseName=&#60;your database name&#62;
