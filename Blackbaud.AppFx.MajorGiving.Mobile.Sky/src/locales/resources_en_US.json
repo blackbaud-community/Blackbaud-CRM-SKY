@@ -263,6 +263,10 @@
     "_description": "The name format for a person. The {0} token is the first name and the {1} token is the key name. If no first name exists, the key name will be used by itself",
     "message": "{0} {1}"
   },
+  "name_format_class": {
+    "_description": "The custom name format for a person. The {0} token is the name, then class of.",
+    "message": "{0}, class of {1}"
+  },
   "nextInteraction": {
     "_description": "Displays the text 'Next interaction'",
     "message": "Next interaction"

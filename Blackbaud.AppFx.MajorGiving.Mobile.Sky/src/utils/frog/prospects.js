@@ -144,6 +144,16 @@
             return keyName;
         }
 
+        function getFullNameWithClassOf(frogResources, firstName, keyName, classOf) {
+            var result = getFullName(frogResources, firstName, keyName);
+
+            if (classOf) {
+                return frogResources.name_format_class.format(result, classOf);
+            }
+
+            return result;
+        }
+
         function requestFailure(reply, failureCallback) {
             var result = {};
     
@@ -159,6 +169,7 @@
             getNextStepInfo: getNextStepInfo,
             PLAN_TYPE: PLAN_TYPE,
             getFullName: getFullName,
+            getFullNameWithClassOf: getFullNameWithClassOf,
             ProspectIdRequiredMessage: ProspectIdRequiredMessage,
             requestFailure: requestFailure
         };
